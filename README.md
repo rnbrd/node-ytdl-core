@@ -5,6 +5,12 @@
 
 Yet another youtube downloading module. Written with only Javascript and a node-friendly streaming interface.
 
+# Some additional notes
+
+# See https://www.npmjs.com/package/ytdl-core for information
+
+# Here for application use: https://blog.usejournal.com/how-i-made-my-own-youtube-downloader-using-javascript-and-node-js-160b172f6e10
+
 # Support
 You can contact us for support on our [chat server](https://discord.gg/V3vSCs7)
 
