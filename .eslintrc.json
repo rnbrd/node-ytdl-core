@@ -9,7 +9,7 @@
     "mocha": false
   },
   "rules": {
-    "no-await-in-loop": "warn",
+    "no-await-in-loop": "off",
     "no-compare-neg-zero": "error",
     "no-extra-parens": ["warn", "all", {
       "nestedBinaryExpressions": false
@@ -41,7 +41,7 @@
     "dot-location": ["error", "property"],
     "dot-notation": "error",
     "eqeqeq": "error",
-    "no-console": "error",
+    "no-console": ["error", { "allow": ["warn"] }],
     "no-empty-function": "error",
     "no-floating-decimal": "error",
     "no-implied-eval": "error",
@@ -52,7 +52,7 @@
     "no-new-wrappers": "error",
     "no-new": "error",
     "no-octal-escape": "error",
-    "no-return-assign": "error",
+    "no-return-assign": "off",
     "no-return-await": "error",
     "no-self-compare": "error",
     "no-sequences": "error",

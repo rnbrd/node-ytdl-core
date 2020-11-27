@@ -1,6 +1,5 @@
-const fs = require('fs');
-const path = require('path');
 const assert = require('assert-diff');
+const sinon = require('sinon');
 const extras = require('../lib/info-extras');
 
 
@@ -21,15 +20,47 @@ const assertUserName = str => {
 };
 
 const assertUserURL = url => {
-  assert.ok(/^https?:\/\/www\.youtube\.com\/user\/[a-zA-Z0-9_-]+$/.test(url), `Not a user URL: ${url}`);
+  assert.ok(/^https?:\/\/www\.youtube\.com\/(user|channel)\/[a-zA-Z0-9_-]+$/.test(url), `Not a user URL: ${url}`);
+};
+
+const assertThumbnails = thumbnails => {
+  assert.ok(Array.isArray(thumbnails));
+  for (let thumbnail of thumbnails) {
+    assertURL(thumbnail.url);
+    assert.equal(typeof thumbnail.width, 'number');
+    assert.equal(typeof thumbnail.height, 'number');
+  }
+};
+
+const assertRelatedVideos = relatedVideos => {
+  assert.ok(Array.isArray(relatedVideos));
+  assert.ok(relatedVideos.length > 0);
+  for (let video of relatedVideos) {
+    assert.ok(video.id);
+    assert.ok(video.title);
+    assert.ok(video.length_seconds);
+    assertThumbnails(video.thumbnails);
+    assert.equal(typeof video.isLive, 'boolean');
+    assert.ok(/[a-z]+/.test(video.author));
+    assert.ok(video.author.id);
+    assert.ok(video.author.name);
+    assert.ok(video.author.channel_url);
+    assertThumbnails(video.author.thumbnails);
+    assert.equal(typeof video.author.verified, 'boolean');
+  }
 };
 
 describe('extras.getAuthor()', () => {
+  // To remove later.
+  before(() => sinon.replace(console, 'warn', sinon.stub()));
+  after(() => sinon.restore());
+
   it('Returns video author object', () => {
-    const info = require('./files/videos/vevo/expected-info.json');
+    const info = require('./files/videos/regular/expected-info.json');
     const author = extras.getAuthor(info);
     assert.ok(author);
     assertURL(author.avatar);
+    assertThumbnails(author.thumbnails);
     assertChannelURL(author.channel_url);
     assertChannelURL(author.external_channel_url);
     assertUserID(author.id);
@@ -55,6 +86,7 @@ describe('extras.getAuthor()', () => {
       const author = extras.getAuthor(info);
       assert.ok(author);
       assertURL(author.avatar);
+      assertThumbnails(author.thumbnails);
       assertChannelURL(author.channel_url);
       assertChannelURL(author.external_channel_url);
       assertUserID(author.id);
@@ -62,7 +94,7 @@ describe('extras.getAuthor()', () => {
       assert.ok(author.name);
       assertUserURL(author.user_url);
       assert.strictEqual(typeof author.verified, 'boolean');
-      assert.number(author.subscriber_count);
+      assert.ok(!author.subscriber_count);
     });
   });
 });
@@ -70,10 +102,10 @@ describe('extras.getAuthor()', () => {
 
 describe('extras.getMedia()', () => {
   it('Returns media object', () => {
-    const info = require('./files/videos/vevo/expected-info.json');
+    const info = require('./files/videos/music/expected-info.json');
     const media = extras.getMedia(info);
     assert.ok(media);
-    assert.strictEqual(media.artist, 'Wu-Tang Clan');
+    assert.strictEqual(media.artist, 'Syn Cole');
     assertChannelURL(media.artist_url);
     assert.strictEqual(media.category, 'Music');
     assertURL(media.category_url);
@@ -103,36 +135,25 @@ describe('extras.getMedia()', () => {
 
 
 describe('extras.getRelatedVideos()', () => {
+  // To remove later.
+  before(() => sinon.replace(console, 'warn', sinon.stub()));
+  after(() => sinon.restore());
+
   it('Returns related videos', () => {
-    const info = require('./files/videos/related2/expected-info.json');
-    const relatedVideos = extras.getRelatedVideos(info);
-    assert.ok(relatedVideos && relatedVideos.length > 0);
-    for (let video of relatedVideos) {
-      assert.ok(video.id);
-      assert.ok(video.author);
-      assert.ok(video.title);
-      assert.ok(video.length_seconds);
-      assertURL(video.video_thumbnail);
-    }
+    const info = require('./files/videos/regular/expected-info.json');
+    assertRelatedVideos(extras.getRelatedVideos(info));
   });
 
   describe('Without `rvs` params', () => {
     it('Still able to find video params', () => {
-      const info = require('./files/videos/related/expected-info-no-rvs.json');
-      const relatedVideos = extras.getRelatedVideos(info);
-      for (let video of relatedVideos) {
-        assert.ok(video.id);
-        assert.ok(video.author);
-        assert.ok(video.title);
-        assert.ok(video.length_seconds);
-        assertURL(video.video_thumbnail);
-      }
+      const info = require('./files/videos/regular/expected-info-no-rvs.json');
+      assertRelatedVideos(extras.getRelatedVideos(info));
     });
   });
 
   describe('Without `secondaryResults`', () => {
     it('Unable to find any videos', () => {
-      const info = require('./files/videos/related/expected-info-no-results.json');
+      const info = require('./files/videos/regular/expected-info-no-results.json');
       const relatedVideos = extras.getRelatedVideos(info);
       assert.ok(relatedVideos);
       assert.deepEqual(relatedVideos, []);
@@ -142,7 +163,7 @@ describe('extras.getRelatedVideos()', () => {
   describe('With an unparseable video', () => {
     it('Catches errors', () => {
       const info = require(
-        './files/videos/related/watch-bad-details.json');
+        './files/videos/regular/watch-bad-details.json');
       const relatedVideos = extras.getRelatedVideos(info);
       assert.deepEqual(relatedVideos, []);
     });
@@ -151,17 +172,15 @@ describe('extras.getRelatedVideos()', () => {
 
 describe('extras.getLikes()', () => {
   it('Returns like count', () => {
-    let html = fs.readFileSync(path.resolve(__dirname,
-      'files/videos/regular/watch.json'), 'utf8');
-    const likes = extras.getLikes(html);
+    const info = require('./files/videos/regular/watch.json')[3];
+    const likes = extras.getLikes(info);
     assert.strictEqual(typeof likes, 'number');
   });
 
   describe('With no likes', () => {
     it('Does not return likes', () => {
-      let html = fs.readFileSync(path.resolve(__dirname,
-        'files/videos/no-likes-or-dislikes/watch.json'), 'utf8');
-      const likes = extras.getLikes(html);
+      const info = require('./files/videos/no-likes-or-dislikes/watch.json')[3];
+      const likes = extras.getLikes(info);
       assert.strictEqual(likes, null);
     });
   });
@@ -169,17 +188,15 @@ describe('extras.getLikes()', () => {
 
 describe('extras.getDislikes()', () => {
   it('Returns dislike count', () => {
-    let html = fs.readFileSync(path.resolve(__dirname,
-      'files/videos/regular/watch.json'), 'utf8');
-    const dislikes = extras.getDislikes(html);
+    const info = require('./files/videos/regular/watch.json')[3];
+    const dislikes = extras.getDislikes(info);
     assert.strictEqual(typeof dislikes, 'number');
   });
 
   describe('With no dislikes', () => {
     it('Does not return dislikes', () => {
-      let html = fs.readFileSync(path.resolve(__dirname,
-        'files/videos/no-likes-or-dislikes/watch.json'), 'utf8');
-      const dislikes = extras.getDislikes(html);
+      const info = require('./files/videos/no-likes-or-dislikes/watch.json')[3];
+      const dislikes = extras.getDislikes(info);
       assert.strictEqual(dislikes, null);
     });
   });
